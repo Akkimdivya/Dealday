@@ -28,7 +28,7 @@ const CreateEmployee = () => {
         formData.append('course', course);
         formData.append('image', image);
 
-        axios.post('http://localhost:4001/employees', formData, {
+        axios.post('https://dealday.onrender.com/employees', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data'
             }
