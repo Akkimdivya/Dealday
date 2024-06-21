@@ -20,7 +20,7 @@ const EmployeeList = () => {
   }, [reload]);
 
   const deleteUser = (e) => {
-    axios.delete(`http://localhost:4001/employee-list/${e}`);
+    axios.delete(`https://dealday.onrender.com/employee-list/${e}`);
     setReload(2);
   };
 
