@@ -1,14 +1,11 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
-const cors = require('cors');
-const bcrypt = require('bcrypt');
-const multer = require('multer');
-const path = require('path');
-const jwt = require('jsonwebtoken'); // For JWT token handling
-
-const registeredUsers = require('./models/registeredUsers');
-const modelEmployeeRegister = require('./models/modelEmployeeRegister');
+const express = require("express");
+const mongoose = require("mongoose");
+const bodyParser = require("body-parser");
+const cors = require("cors");
+const multer = require("multer");
+const registeredUsers = require("./models/registeredUsers");
+const modelEmployeeRegister = require("./models/modelEmployeeRegister");
+const { uploadToCloudinary } = require("./cloudinary");
 
 const app = express();
 app.use(cors());
@@ -17,160 +14,144 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Database connection
 mongoose
-  .connect('mongodb+srv://divyaakkim3:dhVV9ruWmN5FFyDy@dealsdray.bnzuw49.mongodb.net/')
-  .then(() => console.log('DB Connection established'))
+  .connect(
+    "mongodb+srv://divyaakkim3:dhVV9ruWmN5FFyDy@dealsdray.bnzuw49.mongodb.net/"
+  )
+  .then(() => console.log("DB Connection established"))
   .catch((err) => console.log(err));
 
-// Multer storage configuration
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, './images'));
-  },
-  filename: function (req, file, cb) {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
+// Multer configuration for memory storage
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// Serve static files from the 'Images' directory
-app.use('/Images', express.static(path.join(__dirname, 'Images')));
-
+// Registration form data handle
 app.post("/register", (req, res) => {
-  registeredUsers.findOne({ email: req.body.email })
-      .then((user) => {
-          if (user !== null) {
-              res.json("email already registered..")
-          }
-          else {
-              let dataForDB = new registeredUsers(req.body)
-              dataForDB.save()
-                  .then((data) => { res.json("input stored in DB successfully..."); })
-                  .catch((error) => (res.json("data can not be saved , problem at saving time....")))
-          }
-      })
-      .catch(() => {
-          res.json("registration problem...")
-      })
+  registeredUsers
+    .findOne({ email: req.body.email })
+    .then((user) => {
+      if (user) {
+        res.json("email already registered..");
+      } else {
+        const dataForDB = new registeredUsers(req.body);
+        dataForDB
+          .save()
+          .then(() => res.json("input stored in DB successfully..."))
+          .catch(() => res.json("data cannot be saved, problem at saving time...."));
+      }
+    })
+    .catch(() => res.json("registration problem..."));
+});
 
-
-})
-
-
-// User login endpoint
+// Handling Login Action
 app.post("/login", (req, res) => {
-  registeredUsers.findOne({ email: req.body.email})
-      .then((user) => {
-          if (user.cnfPassword == req.body.password) {
-              res.json({ "status": "success", "id": user._id});
-          }
-          else {
-              res.json({ "status": "fail"})
-          }
-      })
-      .catch(() => { res.json({ "status": "noUser"}) })
+  registeredUsers
+    .findOne({ email: req.body.email })
+    .then((user) => {
+      if (user && user.cnfPassword === req.body.password) {
+        res.json({ status: "success", id: user._id });
+      } else {
+        res.json({ status: "fail" });
+      }
+    })
+    .catch(() => res.json({ status: "noUser" }));
+});
 
-})
-
-// Endpoint to respond with user data for the dashboard
-app.get('/user/:ID', async (req, res) => {
-  try {
-    const user = await registeredUsers.findById(req.params.ID);
-
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    res.status(200).json({ name: user.name });
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching user data', error });
-  }
+// Respond data to the Dashboard component
+app.get("/user/:ID", (req, res) => {
+  const ID = req.params.ID;
+  registeredUsers
+    .findOne({ _id: ID })
+    .then((user) => res.json(user.name))
+    .catch(() => console.log("problem at param get users Express.."));
 });
 
 // Storing create employee form data
-app.post('/employees', upload.single('image'), async (req, res) => {
+app.post("/employees", upload.single("image"), async (req, res) => {
   try {
-    const { email } = req.body;
-    const existingEmployee = await modelEmployeeRegister.findOne({ email });
-
-    if (existingEmployee) {
-      return res.status(400).json({ message: 'Email already registered' });
+    const existingUser = await modelEmployeeRegister.findOne({ email: req.body.email });
+    if (existingUser) {
+      return res.json("email already registered..");
     }
 
-    const newEmployee = new modelEmployeeRegister({
-      ...req.body,
-      image: req.file.filename,
+    let imageUrl = null;
+    if (req.file) {
+      const result = await uploadToCloudinary(req.file);
+      imageUrl = result.secure_url;
+    }
+
+    const dataForDB = new modelEmployeeRegister({
+      name: req.body.name,
+      email: req.body.email,
+      phone: req.body.phone,
+      designation: req.body.designation,
+      gender: req.body.gender,
+      course: req.body.course,
+      image: imageUrl,
     });
-    await newEmployee.save();
 
-    res.status(201).json({ message: 'Employee registered successfully' });
+    await dataForDB.save();
+    res.json("input stored in DB successfully...");
   } catch (error) {
-    res.status(500).json({ message: 'Employee registration error', error });
+    console.log("Error saving employee:", error);
+    res.json("data cannot be saved, problem at saving time....");
   }
 });
 
-// Fetch employee list
-app.get('/employee-list', async (req, res) => {
-  try {
-    const employees = await modelEmployeeRegister.find();
-    res.status(200).json(employees);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching employee list', error });
-  }
+// Responding employee-list
+app.get("/employee-list", (req, res) => {
+  modelEmployeeRegister
+    .find()
+    .then((employees) => res.send(employees))
+    .catch(() => res.send("Error fetching employee list"));
 });
 
-// Fetch single employee data for editing
-app.get('/employee-list/:ID', async (req, res) => {
-  try {
-    const employee = await modelEmployeeRegister.findById(req.params.ID);
+// Edit-employee send data
+app.get("/employee-list/:ID", (req, res) => {
+  const ID = req.params.ID;
+  modelEmployeeRegister
+    .findOne({ _id: ID })
+    .then((employee) => res.send(employee))
+    .catch(() => res.send("employee not found"));
+});
 
-    if (!employee) {
-      return res.status(404).json({ message: 'Employee not found' });
+// Edit-employee update values
+app.put("/employee-list/:ID", upload.single("image"), async (req, res) => {
+  const ID = req.params.ID;
+  const updateData = {
+    name: req.body.name,
+    email: req.body.email,
+    phone: req.body.phone,
+    designation: req.body.designation,
+    gender: req.body.gender,
+    course: req.body.course,
+  };
+
+  try {
+    if (req.file) {
+      const result = await uploadToCloudinary(req.file);
+      updateData.image = result.secure_url;
+    } else {
+      updateData.image = req.body.image;
     }
 
-    res.status(200).json(employee);
+    await modelEmployeeRegister.updateOne({ _id: ID }, updateData);
+    res.send("successfully updated data");
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching employee data', error });
-  }
-});
-
-// Edit employee data
-app.put('/employee-list/:ID', upload.single('image'), async (req, res) => {
-  try {
-    const updateData = {
-      ...req.body,
-      image: req.file ? req.file.filename : req.body.image,
-    };
-    const updatedEmployee = await modelEmployeeRegister.findByIdAndUpdate(
-      req.params.ID,
-      updateData,
-      { new: true }
-    );
-
-    if (!updatedEmployee) {
-      return res.status(404).json({ message: 'Employee not found' });
-    }
-
-    res.status(200).json({ message: 'Employee data updated successfully', updatedEmployee });
-  } catch (error) {
-    res.status(500).json({ message: 'Error updating employee data', error });
+    console.log("Error updating employee:", error);
+    res.send("error at update API");
   }
 });
 
 // Delete employee
-app.delete('/employee-list/:ID', async (req, res) => {
-  try {
-    const deletedEmployee = await modelEmployeeRegister.findByIdAndDelete(req.params.ID);
-
-    if (!deletedEmployee) {
-      return res.status(404).json({ message: 'Employee not found' });
-    }
-
-    res.status(200).json({ message: 'Employee deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Error deleting employee', error });
-  }
+app.delete("/employee-list/:ID", (req, res) => {
+  const ID = req.params.ID;
+  modelEmployeeRegister
+    .deleteOne({ _id: ID })
+    .then(() => res.send("user deleted.."))
+    .catch(() => res.send("problem at deletion.."));
 });
 
 app.listen(4001, () => {
-  console.log('Server listening at 4001....');
+  console.log("server listening at 4001....");
 });
+
