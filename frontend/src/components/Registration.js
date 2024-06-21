@@ -18,7 +18,7 @@ const Registration = () => {
       alert("To register, fill all the fields!");
     } else {
       if (password === cnfPassword) {
-        axios.post('http://localhost:4001/register', payload)
+        axios.post('https://dealday.onrender.com/register', payload)
           .then((e) => {
             alert(e.data);
             navigate("/");
