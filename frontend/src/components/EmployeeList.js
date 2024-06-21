@@ -9,7 +9,7 @@ const EmployeeList = () => {
 
   useEffect(() => {
     axios
-      .get("http://localhost:4001/employee-list")
+      .get("https://dealday.onrender.com/employee-list")
       .then((e) => {
         setinfoFromDB(e.data);
       })
