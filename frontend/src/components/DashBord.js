@@ -8,7 +8,7 @@ const DashBord = () => {
   const { ID } = useParams();
 
   useEffect(() => {
-    axios.get(`http://localhost:4001/user/${ID}`)
+    axios.get(`https://dealday.onrender.com/user/${ID}`)
       .then((response) => {
         setName(response.data.name);
       })
