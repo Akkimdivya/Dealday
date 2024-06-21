@@ -16,7 +16,7 @@ const EditEmployee = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    axios.get(`http://localhost:4001/employee-list/${ID}`)
+    axios.get(`https://dealday.onrender.com/employee-list/${ID}`)
       .then((res) => {
         const data = res.data;
         setName(data.name);
@@ -52,7 +52,7 @@ const EditEmployee = () => {
     formData.append('course', courses);
     formData.append('image', image ? image : prevImage);
 
-    axios.put(`http://localhost:4001/employee-list/${ID}`, formData, {
+    axios.put(`https://dealday.onrender.com/employee-list/${ID}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
