@@ -35,49 +35,41 @@ const upload = multer({ storage });
 // Serve static files from the 'Images' directory
 app.use('/Images', express.static(path.join(__dirname, 'Images')));
 
-// User registration endpoint
-app.post('/register', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const existingUser = await registeredUsers.findOne({ email });
+app.post("/register", (req, res) => {
+  registeredUsers.findOne({ email: req.body.email })
+      .then((user) => {
+          if (user !== null) {
+              res.json("email already registered..")
+          }
+          else {
+              let dataForDB = new registeredUsers(req.body)
+              dataForDB.save()
+                  .then((data) => { res.json("input stored in DB successfully..."); })
+                  .catch((error) => (res.json("data can not be saved , problem at saving time....")))
+          }
+      })
+      .catch(() => {
+          res.json("registration problem...")
+      })
 
-    if (existingUser) {
-      return res.status(400).json({ message: 'Email already registered' });
-    }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new registeredUsers({ ...req.body, password: hashedPassword });
-    await newUser.save();
+})
 
-    res.status(201).json({ message: 'User registered successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Registration error', error });
-  }
-});
 
 // User login endpoint
-app.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const user = await registeredUsers.findOne({ email });
+app.post("/login", (req, res) => {
+  registeredUsers.findOne({ email: req.body.email})
+      .then((user) => {
+          if (user.cnfPassword == req.body.password) {
+              res.json({ "status": "success", "id": user._id});
+          }
+          else {
+              res.json({ "status": "fail"})
+          }
+      })
+      .catch(() => { res.json({ "status": "noUser"}) })
 
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    const token = jwt.sign({ id: user._id }, 'your_jwt_secret', { expiresIn: '1h' });
-
-    res.status(200).json({ message: 'Login successful', token });
-  } catch (error) {
-    res.status(500).json({ message: 'Login error', error });
-  }
-});
+})
 
 // Endpoint to respond with user data for the dashboard
 app.get('/user/:ID', async (req, res) => {
