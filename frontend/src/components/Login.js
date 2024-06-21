@@ -10,7 +10,7 @@ const Login = () => {
 
   const login = () => {
     const payload = { email, password };
-    axios.post('http://localhost:4001/login', payload)
+    axios.post('https://dealday.onrender.com/login', payload)
       .then((e) => {
         if (e.data.status === "success") {
           navigate(`/dashbord/${e.data.id}`);
