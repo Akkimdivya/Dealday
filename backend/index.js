@@ -56,14 +56,13 @@ app.post("/login", (req, res) => {
     .catch(() => res.json({ status: "noUser" }));
 });
 
-// Respond data to the Dashboard component
+// respond data to the Dashbord component
 app.get("/user/:ID", (req, res) => {
-  const ID = req.params.ID;
-  registeredUsers
-    .findOne({ _id: ID })
-    .then((user) => res.json(user.name))
-    .catch(() => console.log("problem at param get users Express.."));
-});
+    let ID = req.params.ID
+    registeredUsers.findOne({ _id: ID })
+        .then((e) => { res.json(e.name) })
+        .catch(() => { console.log("problem at param get users Express.."); })
+})
 
 // Storing create employee form data
 app.post("/employees", upload.single("image"), async (req, res) => {
